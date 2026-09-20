@@ -5,9 +5,22 @@
 | **`prism`** | Backends → system cache |
 | **`prism-mcp`** | MCP over that cache |
 
+## Setup (one line)
+
 ```bash
-cd ~/Documents/Code/code-prism-cli && npm link
-# or: export PATH="$HOME/bin:$PATH"
+curl -fsSL https://raw.githubusercontent.com/jokerphuongnam/code-prism-cli/main/install.sh | bash
+```
+
+Installs `prism` + `prism-mcp` into `~/bin`, builds [mcp-prism](https://github.com/jokerphuongnam/mcp-prism), and clones language backends under `~/Documents/Code/code-prism/backends/`.
+
+Requires **Node.js ≥ 20**, `git`, and `npm`.
+
+## Quick start
+
+```bash
+prism plugins
+prism analyze --root /path/to/project
+prism-mcp .                 # MCP for current folder
 ```
 
 ## `prism`
@@ -19,7 +32,7 @@ prism analyze --root /path/to/project
 prism swift   --root /path/to/project
 ```
 
-## `prism-mcp` (simple)
+## `prism-mcp`
 
 ```bash
 prism-mcp .                 # current folder
@@ -30,7 +43,7 @@ prism-mcp which
 
 `--lang` optional (omit = all languages for that project).
 
-### MCP client config (short)
+### MCP client config
 
 After you’ve analyzed once (`prism analyze --root …`):
 
@@ -68,3 +81,5 @@ Or for “whatever folder I’m in”:
 | `CODE_PRISM_LANG` | Optional language filter |
 | `CODE_PRISM_BACKEND_<ID>` | Override backend binary |
 | `CODE_PRISM_MCP_SERVER` | Override mcp-prism `dist/server.js` |
+| `CODE_PRISM_HOME` | Install root (default `~/Documents/Code`) |
+| `CODE_PRISM_BIN` | Where to link CLIs (default `~/bin`) |
