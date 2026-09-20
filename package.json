@@ -1,0 +1,17 @@
+{
+  "name": "code-prism-cli",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Unified CLI: prism (backends) + prism-mcp (MCP server over SoT cache)",
+  "bin": {
+    "prism": "./bin/prism",
+    "prism-mcp": "./bin/prism-mcp"
+  },
+  "scripts": {
+    "link-global": "npm link"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
