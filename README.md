@@ -1,55 +1,70 @@
 # code-prism-cli
 
-Unified CLIs for Code Prism:
-
 | Command | Role |
 |---------|------|
-| **`prism`** | Talk to language **backends** (analyze → system cache) |
-| **`prism-mcp`** | Run **mcp-prism** pointed at a user project |
-
-## Install (PATH)
+| **`prism`** | Backends → system cache |
+| **`prism-mcp`** | MCP over that cache |
 
 ```bash
-cd ~/Documents/Code/code-prism-cli
-npm link
-# or:
-# sudo ln -sf "$PWD/bin/prism" /usr/local/bin/prism
-# sudo ln -sf "$PWD/bin/prism-mcp" /usr/local/bin/prism-mcp
+cd ~/Documents/Code/code-prism-cli && npm link
+# or: export PATH="$HOME/bin:$PATH"
 ```
 
-## `prism` (backends)
+## `prism`
 
 ```bash
 prism plugins
 prism detect  --root /path/to/project
-prism cache   --root /path/to/project
-prism analyze --root /path/to/project              # all detected langs
-prism analyze --root /path/to/project --lang swift # one lang
+prism analyze --root /path/to/project
 prism swift   --root /path/to/project
-prism js      --root /path/to/project
 ```
 
-Writes SoT under:
-
-```text
-~/Library/Caches/code-prism/<projectName>-<hash>/{lang}-prism/
-```
-
-## `prism-mcp` (MCP)
+## `prism-mcp` (simple)
 
 ```bash
-prism-mcp --cwd /path/to/project
-prism-mcp serve --cwd . --lang swift
+prism-mcp .                 # current folder
+prism-mcp game              # short name from cache (e.g. game-<hash>)
+prism-mcp ~/path/to/project
 prism-mcp which
 ```
 
-Sets `PRISM_CWD` (and optional `CODE_PRISM_LANG`) and runs `mcp-prism` over the cache.
+`--lang` optional (omit = all languages for that project).
+
+### MCP client config (short)
+
+After you’ve analyzed once (`prism analyze --root …`):
+
+```json
+{
+  "mcpServers": {
+    "code-prism": {
+      "command": "prism-mcp",
+      "args": ["game"]
+    }
+  }
+}
+```
+
+Or for “whatever folder I’m in”:
+
+```json
+{
+  "mcpServers": {
+    "code-prism": {
+      "command": "prism-mcp",
+      "args": ["."]
+    }
+  }
+}
+```
+
+(If the host doesn’t set cwd to the workspace, use the short cache name or an absolute path.)
 
 ## Env
 
 | Variable | Meaning |
 |----------|---------|
-| `CODE_PRISM_BACKEND_<ID>` | Override binary for a plugin |
-| `CODE_PRISM_MCP_SERVER` | Override path to mcp-prism `dist/server.js` |
-| `PRISM_CWD` | Project pointer for MCP |
-| `CODE_PRISM_LANG` | Optional language filter for MCP |
+| `PRISM_CWD` | Project pointer (set automatically by `prism-mcp`) |
+| `CODE_PRISM_LANG` | Optional language filter |
+| `CODE_PRISM_BACKEND_<ID>` | Override backend binary |
+| `CODE_PRISM_MCP_SERVER` | Override mcp-prism `dist/server.js` |
