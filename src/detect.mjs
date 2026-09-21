@@ -5,6 +5,7 @@ import { canDetectLanguage, discoverPlugins } from "./plugins.mjs";
 const SKIP = new Set([
   ".build", "DerivedData", "Pods", "node_modules", ".git", "Carthage",
   "dist", "target", ".next", ".turbo", "__pycache__", ".venv", "vendor",
+  ".cache", "CMakeFiles", "out", "build", "Generated", "generated",
 ]);
 
 /**
