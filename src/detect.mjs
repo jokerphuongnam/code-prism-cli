@@ -1,14 +1,18 @@
 import fs from "fs";
 import path from "path";
-import { discoverPlugins } from "./plugins.mjs";
+import { canDetectLanguage, discoverPlugins } from "./plugins.mjs";
 
 const SKIP = new Set([
   ".build", "DerivedData", "Pods", "node_modules", ".git", "Carthage",
   "dist", "target", ".next", ".turbo", "__pycache__", ".venv", "vendor",
 ]);
 
+/**
+ * Detect languages from **installed plugins only**.
+ * Extensions with no plugin (e.g. .lua without lua-prism) are ignored — no SoT/nodes.
+ */
 export function detectLanguages(projectRoot) {
-  const plugins = discoverPlugins();
+  const plugins = discoverPlugins().filter(canDetectLanguage);
   if (plugins.length === 0) {
     throw new Error(
       "No Code Prism backends found. Clone into ~/Documents/Code/code-prism/backends/*-prism"

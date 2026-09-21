@@ -55,6 +55,11 @@ function tryLoad(dir) {
   };
 }
 
+/** True if this plugin can claim source files (manifest extensions and/or markers). */
+export function canDetectLanguage(plugin) {
+  return (plugin.extensions?.length ?? 0) > 0 || (plugin.markers?.length ?? 0) > 0;
+}
+
 /** Discover plugins from Application Support + backends checkouts. */
 export function discoverPlugins() {
   const byId = new Map();
