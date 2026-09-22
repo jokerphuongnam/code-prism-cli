@@ -14,14 +14,16 @@ import path from "path";
 import { cacheDirFor, projectSlug } from "./cache.mjs";
 import { detectLanguages } from "./detect.mjs";
 import { discoverPlugins, findPlugin } from "./plugins.mjs";
+import { discoverProjects } from "./projects.mjs";
 
 function usage(code = 0) {
   console.log(`prism — Code Prism backend CLI
 
 Usage:
   prism plugins
-  prism detect  --root <project>
-  prism cache   --root <project>
+  prism detect   --root <project>
+  prism projects --root <project>
+  prism cache    --root <project>
   prism analyze --root <project> [--lang auto|<id>]
   prism <lang>  --root <project> [--out <json>] [--lang <id>]
 
@@ -189,6 +191,11 @@ function main() {
     if (cmd === "detect") {
       if (!args.root) throw new Error("--root required");
       return cmdDetect(args.root);
+    }
+    if (cmd === "projects") {
+      if (!args.root) throw new Error("--root required");
+      console.log(JSON.stringify(discoverProjects(args.root), null, 2));
+      return;
     }
     if (cmd === "cache") {
       if (!args.root) throw new Error("--root required");

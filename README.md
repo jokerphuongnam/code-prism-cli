@@ -27,8 +27,9 @@ prism-mcp .                 # MCP for current folder
 
 ```bash
 prism plugins
-prism detect  --root /path/to/project
-prism analyze --root /path/to/project
+prism detect   --root /path/to/project
+prism projects --root /path/to/project
+prism analyze  --root /path/to/project
 prism swift   --root /path/to/project
 ```
 
@@ -40,6 +41,8 @@ prism-mcp game              # short name from cache (e.g. game-<hash>)
 prism-mcp ~/path/to/project
 prism-mcp which
 ```
+
+`prism projects` prints a `nodes` graph. `parents` is the larger project that contains this one (a folder with several projects becomes a `group`). `calls` is a project invoking another: Cargo path / workspace dependency, local Swift package, a remote URL whose name matches a project in the same tree, or an FFI library name shared by Swift and Cargo.
 
 `--lang` optional (omit = all languages for that project).
 
