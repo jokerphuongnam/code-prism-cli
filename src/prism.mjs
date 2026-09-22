@@ -15,6 +15,7 @@ import { cacheDirFor, projectSlug } from "./cache.mjs";
 import { detectLanguages } from "./detect.mjs";
 import { discoverPlugins, findPlugin } from "./plugins.mjs";
 import { discoverProjects } from "./projects.mjs";
+import { openProjectUI } from "./ui.mjs";
 
 function usage(code = 0) {
   console.log(`prism — Code Prism backend CLI
@@ -23,6 +24,7 @@ Usage:
   prism plugins
   prism detect   --root <project>
   prism projects --root <project>
+  prism ui       --root <project>
   prism cache    --root <project>
   prism analyze --root <project> [--lang auto|<id>]
   prism <lang>  --root <project> [--out <json>] [--lang <id>]
@@ -45,6 +47,7 @@ function parseArgs(argv) {
     if (a === "--root") out.root = path.resolve(argv[++i]);
     else if (a === "--out") out.out = path.resolve(argv[++i]);
     else if (a === "--lang") out.lang = argv[++i];
+    else if (a === "--no-open") out.noOpen = true;
     else if (a === "-h" || a === "--help") out.help = true;
     else if (a.startsWith("-")) {
       console.error(`Unknown flag: ${a}`);
@@ -195,6 +198,12 @@ function main() {
     if (cmd === "projects") {
       if (!args.root) throw new Error("--root required");
       console.log(JSON.stringify(discoverProjects(args.root), null, 2));
+      return;
+    }
+    if (cmd === "ui") {
+      if (!args.root) throw new Error("--root required");
+      const file = openProjectUI(discoverProjects(args.root), args.root, { open: !args.noOpen });
+      console.log(file);
       return;
     }
     if (cmd === "cache") {

@@ -170,6 +170,7 @@ function toNodeGraph(realRoot, projects, edges) {
       location: { absPath: project.root },
       parents: [],
       calls: [],
+      targets: project.targets || [],
     };
     const parentProject = ancestor(project);
     if (parentProject) node.parents = [`${parentProject.ecosystem}:${rel(parentProject.root)}`];
@@ -325,8 +326,9 @@ function parseXcode(dir, scanRoot, add) {
     ? path.join(dir, "project.pbxproj")
     : null;
   const text = pbx ? read(pbx) : "";
-  const name = path.basename(dir).replace(/\.(xcodeproj|xcworkspace)$/, "");
+  const name = path.basename(dir);
   const root = path.dirname(dir);
+  const targets = nativeTargets(text);
   const pathDeps = [];
   const remoteDeps = [];
   const ffiLibraries = new Set();
@@ -355,8 +357,19 @@ function parseXcode(dir, scanRoot, add) {
     usesWorkspace: new Set(),
     ffiLibraries: [...ffiLibraries],
     remoteDeps,
+    targets,
     scanRoot,
   });
+}
+
+function nativeTargets(text) {
+  const section = text.split("/* Begin PBXNativeTarget section */")[1]?.split("/* End PBXNativeTarget section */")[0] || "";
+  const names = [];
+  for (const block of section.split("isa = PBXNativeTarget;").slice(1)) {
+    const name = block.match(/\n\t\t\tname = "?([^";]+)"?;/)?.[1];
+    if (name && !names.includes(name)) names.push(name);
+  }
+  return names;
 }
 
 function parseNpm(file, add) {
