@@ -15,6 +15,7 @@ import { cacheDirFor, projectSlug } from "./cache.mjs";
 import { detectLanguages } from "./detect.mjs";
 import { discoverPlugins, findPlugin } from "./plugins.mjs";
 import { discoverProjects } from "./projects.mjs";
+import { stampContext } from "./stamp.mjs";
 import { openProjectUI } from "./ui.mjs";
 
 function usage(code = 0) {
@@ -128,6 +129,7 @@ function runPlugin(plugin, root, outPath) {
     sot: { json: outPath, sqlite: path.join(destDir, "graph.sqlite") },
   };
   fs.writeFileSync(path.join(destDir, "meta.json"), JSON.stringify(meta, null, 2));
+  stampContext(outPath, root);
   return { outPath, cacheDir: destDir, meta };
 }
 

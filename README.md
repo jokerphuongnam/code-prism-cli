@@ -42,6 +42,8 @@ prism-mcp ~/path/to/project
 prism-mcp which
 ```
 
+`prism analyze` stamps every symbol onto that same tree: the node parent is the crate, Swift package, or Xcode target that owns the file, and a call stays inside that archipelago.
+
 `prism ui --root <folder>` opens that graph: each top-level project is an island, links inside an island are blue, links that leave the island are orange.
 
 `prism projects` prints a `nodes` graph. `parents` is the larger project that contains this one (a folder with several projects becomes a `group`). `calls` is a project invoking another: Cargo path / workspace dependency, local Swift package, a remote URL whose name matches a project in the same tree, or an FFI library name shared by Swift and Cargo.
