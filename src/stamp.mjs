@@ -43,10 +43,24 @@ export function stampContext(outPath, root) {
   const symbolById = new Map();
   const files = doc.files || [];
   const nameIndex = new Map();
+  const looseParents = new Map(); // lang → ungrouped::lang node
   for (const file of files) {
     const abs = file.path;
     const scope = scopeFor(graph, byId, abs);
     file.target = scope.archipelago;
+    if (scope.loose) {
+      if (!looseParents.has(scope.lang)) {
+        const id = `ungrouped::${scope.lang}`;
+        looseParents.set(scope.lang, {
+          id,
+          name: `ungrouped · ${scope.lang}`,
+          flavor: "ungrouped",
+          location: { absPath: root, line: 1 },
+          parents: [],
+          calls: [],
+        });
+      }
+    }
     const fileId = `file::${scope.parentId}::${path.basename(abs)}`;
     symbols.push({
       id: fileId,
@@ -70,13 +84,18 @@ export function stampContext(outPath, root) {
       symbols.push(symbol);
       symbolById.set(id, symbol);
       sig.island = scope.archipelago;
+      sig.loose = !!scope.loose;
       sig.nodeId = id;
-      const key = `${scope.archipelago}::${String(sig.id).split(".").pop()}`;
-      if (!nameIndex.has(key)) nameIndex.set(key, id);
+      // Only index non-loose symbols for cross-file calls inside a real archipelago.
+      if (!scope.loose) {
+        const key = `${scope.archipelago}::${String(sig.id).split(".").pop()}`;
+        if (!nameIndex.has(key)) nameIndex.set(key, id);
+      }
     }
   }
   for (const file of files) {
     const scope = scopeFor(graph, byId, file.path);
+    if (scope.loose) continue; // ungrouped piles stay unwired
     for (const sig of file.signatures || []) {
       const node = symbolById.get(sig.nodeId);
       if (!node) continue;
@@ -88,12 +107,39 @@ export function stampContext(outPath, root) {
   }
 
   doc.schemaVersion = "4.0-flat-graph";
-  doc.nodes = [...structural, ...targetNodes, ...symbols];
+  doc.nodes = [...structural, ...targetNodes, ...looseParents.values(), ...symbols];
   fs.writeFileSync(outPath, JSON.stringify(doc));
+}
+
+const LOOSE_SEGMENTS = new Set([
+  "integration", "integrations", "examples", "example", "samples", "sample",
+  "fixtures", "testdata", "playgrounds", "playground", "snippets",
+]);
+
+const EXT_LANG = {
+  marlin: "marlin", marlinheader: "marlin",
+  swift: "swift", m: "objc", mm: "objc",
+  c: "cpp", cc: "cpp", cpp: "cpp", cxx: "cpp", h: "cpp", hpp: "cpp",
+  kt: "kotlin", kts: "kotlin",
+  js: "js", jsx: "js", ts: "js", tsx: "js", mjs: "js", cjs: "js",
+  rs: "rust", go: "go",
+};
+
+function langFromPath(filePath) {
+  const ext = path.extname(filePath).slice(1).toLowerCase();
+  return EXT_LANG[ext] || "unknown";
+}
+
+function isLoosePath(filePath) {
+  return filePath.split(path.sep).some((p) => LOOSE_SEGMENTS.has(String(p).toLowerCase()));
 }
 
 function scopeFor(graph, byId, filePath) {
   try { filePath = fs.realpathSync(filePath); } catch { /* keep */ }
+  const lang = langFromPath(filePath);
+  if (isLoosePath(filePath)) {
+    return { archipelago: `ungrouped/${lang}`, parentId: `ungrouped::${lang}`, loose: true, lang };
+  }
   const leaf = graph.nodes
     .filter((n) => n.location?.absPath && (filePath === n.location.absPath || filePath.startsWith(n.location.absPath + path.sep)))
     .sort((a, b) => {
@@ -102,13 +148,26 @@ function scopeFor(graph, byId, filePath) {
       const rank = (n) => (n.flavor === "group" ? 0 : n.flavor === "xcode" ? 3 : 2);
       return rank(b) - rank(a);
     })[0];
-  if (!leaf) return { archipelago: "root", parentId: graph.nodes.find((n) => n.flavor === "group" && !(n.parents || []).length)?.id || "root" };
+  if (!leaf) {
+    return { archipelago: `ungrouped/${lang}`, parentId: `ungrouped::${lang}`, loose: true, lang };
+  }
+  if (leaf.flavor === "group") {
+    const tighter = graph.nodes.some(
+      (n) =>
+        n.flavor !== "group" &&
+        n.location?.absPath &&
+        (filePath === n.location.absPath || filePath.startsWith(n.location.absPath + path.sep))
+    );
+    if (!tighter) {
+      return { archipelago: `ungrouped/${lang}`, parentId: `ungrouped::${lang}`, loose: true, lang };
+    }
+  }
   const parts = new Set(filePath.split(path.sep));
   if (leaf.flavor === "xcode") {
     const target = (leaf.targets || []).find((t) => parts.has(t));
-    if (target) return { archipelago: `${leaf.name}/${target}`, parentId: `${leaf.id}::target::${target}` };
+    if (target) return { archipelago: `${leaf.name}/${target}`, parentId: `${leaf.id}::target::${target}`, loose: false, lang };
   }
-  return { archipelago: leaf.name, parentId: leaf.id };
+  return { archipelago: leaf.name, parentId: leaf.id, loose: false, lang };
 }
 
 function flavorOf(signature) {
