@@ -61,31 +61,18 @@ echo "⚙  mcp-prism (npm install + build)"
   npm run build --silent
 )
 
-# Language backends (discovered under Documents/Code/code-prism/backends)
-BACKENDS=(
-  js-prism
-  marlin-prism
-  kotlin-prism
-  rust-prism
-  go-prism
-  cpp-prism
-  objective-c-prism
-)
-mkdir -p "$PREFIX/code-prism/backends"
-for name in "${BACKENDS[@]}"; do
-  clone_or_pull "$GH/${name}.git" "$PREFIX/code-prism/backends/$name"
-  if [[ -d "$PREFIX/code-prism/backends/$name/bin" ]]; then
-    chmod +x "$PREFIX/code-prism/backends/$name/bin/"* 2>/dev/null || true
-  fi
-done
-
-# swift-prism may be private — best-effort
-if clone_or_pull "$GH/swift-prism.git" "$PREFIX/code-prism/backends/swift-prism"; then
-  if [[ -e "$PREFIX/code-prism/backends/swift-prism/extension/bin/swift-prism-analyzer" ]]; then
-    chmod +x "$PREFIX/code-prism/backends/swift-prism/extension/bin/swift-prism-analyzer" || true
-  fi
+# Language backends + core — single monorepo (no more per-lang remotes)
+clone_or_pull "$GH/code-prism.git" "$PREFIX/code-prism"
+if [[ -d "$PREFIX/code-prism/backends" ]]; then
+  find "$PREFIX/code-prism/backends" -type f -path '*/bin/*' -exec chmod +x {} \; 2>/dev/null || true
+fi
+# Optional: keep a private swift analyzer build if the user already has one
+if [[ -x "$HOME/Library/Application Support/CodePrism/backends/swift/swift-prism-analyzer" ]]; then
+  echo "✓  swift analyzer (App Support)"
+elif [[ -x "$PREFIX/code-prism/backends/swift/bin/swift-prism-analyzer" ]]; then
+  echo "✓  swift shim (monorepo)"
 else
-  echo "⚠  swift-prism skipped (private or unavailable)"
+  echo "⚠  swift analyzer binary not built yet — see code-prism/backends/swift/README.md"
 fi
 
 # Ensure ~/bin is on PATH for this shell and common rc files
