@@ -8,7 +8,7 @@
  *   prism analyze --root <project> [--lang auto|id]
  *   prism <lang> --root <project> [--out <json>]
  */
-import { spawnSync } from "child_process";
+import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import { cacheDirFor, projectSlug } from "./cache.mjs";
@@ -59,16 +59,25 @@ function parseArgs(argv) {
 }
 
 function runBinary(binaryPath, args, env = {}) {
-  const res = spawnSync(binaryPath, args, {
-    encoding: "utf-8",
-    env: { ...process.env, ...env },
-    stdio: ["ignore", "pipe", "pipe"],
+  return new Promise((resolve, reject) => {
+    const child = spawn(binaryPath, args, {
+      env: { ...process.env, ...env },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const out = [];
+    const err = [];
+    child.stdout.on("data", (chunk) => out.push(chunk));
+    child.stderr.on("data", (chunk) => err.push(chunk));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      const stdout = Buffer.concat(out).toString("utf8");
+      const stderr = Buffer.concat(err).toString("utf8");
+      if (stdout) process.stdout.write(stdout);
+      if (stderr) process.stderr.write(stderr);
+      if (code !== 0) reject(new Error(stderr || `exit ${code}`));
+      else resolve();
+    });
   });
-  if (res.stdout) process.stdout.write(res.stdout);
-  if (res.stderr) process.stderr.write(res.stderr);
-  if (res.status !== 0) {
-    throw new Error(res.stderr || `exit ${res.status}`);
-  }
 }
 
 function findSwiftFiles(root) {
@@ -92,7 +101,7 @@ function findSwiftFiles(root) {
   return out;
 }
 
-function runPlugin(plugin, root, outPath) {
+async function runPlugin(plugin, root, outPath) {
   if (!plugin.binaryPath || !fs.existsSync(plugin.binaryPath)) {
     throw new Error(`Plugin '${plugin.id}' binary not found: ${plugin.binaryPath || "(none)"}`);
   }
@@ -102,7 +111,7 @@ function runPlugin(plugin, root, outPath) {
   if (plugin.id === "swift" || (plugin.extensions.length === 1 && plugin.extensions[0] === "swift")) {
     const files = findSwiftFiles(root);
     if (files.length === 0) throw new Error("No .swift files");
-    runBinary(plugin.binaryPath, [
+    await runBinary(plugin.binaryPath, [
       "--workspace",
       root,
       "--scan-targets",
@@ -113,7 +122,7 @@ function runPlugin(plugin, root, outPath) {
       ...files,
     ]);
   } else {
-    runBinary(
+    await runBinary(
       plugin.binaryPath,
       ["--root", root, "--out", outPath, "--lang", plugin.id],
       { CODE_PRISM_LANG: plugin.id, PRISM_EXTS: plugin.extensions.join(",") }
@@ -164,7 +173,7 @@ function cmdCache(root) {
   console.log(JSON.stringify({ root: fs.realpathSync(root), projectSlug: slug, cacheDir: projectDir, languages: langs }, null, 2));
 }
 
-function cmdAnalyze(root, langOpt) {
+async function cmdAnalyze(root, langOpt) {
   const detected = detectLanguages(root);
   const targets =
     !langOpt || langOpt === "auto"
@@ -173,18 +182,17 @@ function cmdAnalyze(root, langOpt) {
   if (targets.length === 0) {
     throw new Error(`No matching language for --lang ${langOpt}`);
   }
-  const results = [];
-  for (const t of targets) {
+  const results = await Promise.all(targets.map(async (t) => {
     const plugin = t.plugin || findPlugin(t.id);
     if (!plugin) throw new Error(`Plugin not found: ${t.id}`);
     const outPath = path.join(cacheDirFor(root, plugin.id, plugin.cacheFolder), "prism-context.json");
-    const r = runPlugin(plugin, root, outPath);
-    results.push({ language: plugin.id, ...r.meta.sot, cacheDir: r.cacheDir });
-  }
+    const r = await runPlugin(plugin, root, outPath);
+    return { language: plugin.id, ...r.meta.sot, cacheDir: r.cacheDir };
+  }));
   console.log(JSON.stringify({ ok: true, projectSlug: projectSlug(root), results }, null, 2));
 }
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help || args._.length === 0) usage(args.help ? 0 : 2);
 
@@ -214,7 +222,8 @@ function main() {
     }
     if (cmd === "analyze") {
       if (!args.root) throw new Error("--root required");
-      return cmdAnalyze(args.root, args.lang || "auto");
+      await cmdAnalyze(args.root, args.lang || "auto");
+      return;
     }
 
     // prism <lang> --root ...
@@ -227,7 +236,7 @@ function main() {
     }
     const outPath =
       args.out || path.join(cacheDirFor(args.root, plugin.id, plugin.cacheFolder), "prism-context.json");
-    const r = runPlugin(plugin, args.root, outPath);
+    const r = await runPlugin(plugin, args.root, outPath);
     console.log(JSON.stringify({ ok: true, language: plugin.id, cacheDir: r.cacheDir, json: r.outPath }, null, 2));
   } catch (err) {
     console.error(`prism: ${err.message || err}`);
