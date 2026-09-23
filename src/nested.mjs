@@ -44,8 +44,6 @@ function indexNodes(node, map = new Map()) {
   return map;
 }
 
-void path;
-
 export function summarizeTree(node) {
   const leaves = (node.nodes || []).filter((n) => n.kind === "leaf");
   const groups = (node.nodes || []).filter((n) => n.kind !== "leaf");
@@ -64,5 +62,3 @@ function countLeaves(node) {
   for (const child of node.nodes || []) n += countLeaves(child);
   return n;
 }
-
-void discoverPlugins;
