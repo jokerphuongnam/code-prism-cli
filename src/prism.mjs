@@ -17,6 +17,7 @@ import { discoverPlugins, findPlugin } from "./plugins.mjs";
 import { discoverProjects } from "./projects.mjs";
 import { stampContext } from "./stamp.mjs";
 import { openProjectUI } from "./ui.mjs";
+import { loadProjectTree, summarizeTree } from "./nested.mjs";
 
 function usage(code = 0) {
   console.log(`prism — Code Prism backend CLI
@@ -207,12 +208,14 @@ async function main() {
     }
     if (cmd === "projects") {
       if (!args.root) throw new Error("--root required");
-      console.log(JSON.stringify(discoverProjects(args.root), null, 2));
+      const tree = loadProjectTree(args.root);
+      console.log(JSON.stringify(tree ? summarizeTree(tree) : discoverProjects(args.root), null, 2));
       return;
     }
     if (cmd === "ui") {
       if (!args.root) throw new Error("--root required");
-      const file = openProjectUI(discoverProjects(args.root), args.root, { open: !args.noOpen });
+      const tree = loadProjectTree(args.root);
+      const file = openProjectUI(tree || discoverProjects(args.root), args.root, { open: !args.noOpen });
       console.log(file);
       return;
     }

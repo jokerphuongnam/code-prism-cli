@@ -7,12 +7,66 @@ import { attachSymbolIslands } from "./symbols.mjs";
 /** Write a self-contained island map and open it. */
 export function openProjectUI(graph, root, opts = {}) {
   const file = path.join(os.tmpdir(), `prism-islands-${Date.now()}.html`);
-  fs.writeFileSync(file, render(attachSymbolIslands(graph), root));
+  const html = graph?.kind === "project" ? renderNested(graph, root) : render(attachSymbolIslands(graph), root);
+  fs.writeFileSync(file, html);
   if (opts.open !== false) {
     const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
     spawn(opener, [file], { detached: true, stdio: "ignore" }).unref();
   }
   return file;
+}
+
+function renderNested(tree, root) {
+  const data = JSON.stringify(tree).replace(/</g, "\\u003c");
+  return `<!doctype html>
+<meta charset="utf-8">
+<title>Prism — ${path.basename(root)}</title>
+<style>
+  body { margin: 0; background: #12141a; color: #e8e6e3; font: 13px/1.3 ui-sans-serif, system-ui; }
+  header { padding: 12px 16px; position: sticky; top: 0; background: #12141abf; }
+  .regions { display: flex; gap: 28px; padding: 20px; align-items: flex-start; }
+  .region, .archipelago { border-radius: 16px; padding: 10px; }
+  .region { background: #1a1d27; border: 1px solid #3a4154; }
+  .archipelago { margin-top: 8px; border: 1px solid #3ec6ff55; }
+  h2, h3 { margin: 0 0 8px; font-size: 13px; }
+  .leaf { margin: 3px 0; padding: 3px 8px; border-radius: 999px; background: #0e1016cc; font-size: 11px; }
+</style>
+<header><strong>Prism</strong> — chỉ vẽ node lá, gom theo node cha</header>
+<div id="board"></div>
+<script>
+const tree = ${data};
+const board = document.getElementById("board");
+const row = document.createElement("div");
+row.className = "regions";
+board.append(row);
+function paint(node, host, depth) {
+  const leaves = (node.nodes || []).filter(n => n.kind === "leaf");
+  const groups = (node.nodes || []).filter(n => n.kind !== "leaf");
+  const box = document.createElement("section");
+  box.className = depth === 0 ? "region" : "archipelago";
+  const title = document.createElement(depth === 0 ? "h2" : "h3");
+  title.textContent = node.name;
+  box.append(title);
+  for (const leaf of leaves.slice(0, 24)) {
+    const chip = document.createElement("div");
+    chip.className = "leaf";
+    const depends = (leaf.calls || []).filter(c => c.kind === "depends").map(c => c.target.replace("island:", ""));
+    chip.textContent = leaf.flavor + " " + leaf.name + (depends.length ? " → " + depends.join(", ") : "");
+    box.append(chip);
+  }
+  if (leaves.length > 24) {
+    const more = document.createElement("div");
+    more.className = "leaf";
+    more.textContent = "+" + (leaves.length - 24) + " lá";
+    box.append(more);
+  }
+  const inner = document.createElement("div");
+  for (const child of groups) paint(child, inner, depth + 1);
+  box.append(inner);
+  host.append(box);
+}
+for (const child of tree.nodes || []) paint(child, row, 0);
+</script>`;
 }
 
 function render(graph, root) {
